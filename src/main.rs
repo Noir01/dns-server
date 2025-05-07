@@ -1,14 +1,12 @@
 #[allow(unused_imports)]
 use std::{net::SocketAddr, sync::Arc};
 use tokio::net::UdpSocket;
-// use std::net::UdpSocket;
 
 #[tokio::main]
 async fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     println!("Logs from your program will appear here!");
 
-    // Uncomment this block to pass the first stage
     let udp_socket = Arc::new(
         UdpSocket::bind("127.0.0.1:2053")
             .await
@@ -32,7 +30,7 @@ async fn main() {
     }
 }
 
-async fn process(socket: Arc<tokio::net::UdpSocket>, buffer: &[u8], address: SocketAddr) {
+async fn process(socket: Arc<UdpSocket>, buffer: &[u8], address: SocketAddr) {
     eprintln!("Received {} bytes from {}", buffer.len(), address);
 
     let response = [];
