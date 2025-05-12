@@ -79,7 +79,7 @@ async fn process(socket: Arc<UdpSocket>, buffer: &[u8], address: SocketAddr) {
 
     let response_header = DNSHeader {
         id: header.id,
-        flags: header.flags,
+        flags: 1 << 15,
         qdcount: 0,
         ancount: 0,
         nscount: 0,
