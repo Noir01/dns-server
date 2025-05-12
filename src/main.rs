@@ -24,6 +24,20 @@ impl DNSHeader {
             arcount: u16::from_be_bytes([header[10], header[11]]),
         }
     }
+
+    pub fn to_bytes(&self) -> [u8; 12] {
+        let id = self.id.to_be_bytes();
+        let flags = self.flags.to_be_bytes();
+        let qdcount = self.qdcount.to_be_bytes();
+        let ancount = self.ancount.to_be_bytes();
+        let nscount = self.nscount.to_be_bytes();
+        let arcount = self.arcount.to_be_bytes();
+
+        [
+            id[0], id[1], flags[0], flags[1], qdcount[0], qdcount[1], ancount[0], ancount[1],
+            nscount[0], nscount[1], arcount[0], arcount[1],
+        ]
+    }
 }
 
 #[tokio::main]
@@ -63,7 +77,17 @@ async fn process(socket: Arc<UdpSocket>, buffer: &[u8], address: SocketAddr) {
 
     eprintln!("Received header: {:#?}", header);
 
-    let response = [];
+    let response_header = DNSHeader {
+        id: header.id,
+        flags: header.flags,
+        qdcount: 0,
+        ancount: 0,
+        nscount: 0,
+        arcount: 0,
+    };
+
+    let response = response_header.to_bytes();
+
     socket
         .send_to(&response, address)
         .await
