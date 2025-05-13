@@ -13,7 +13,7 @@ struct DNSHeader {
 }
 
 impl DNSHeader {
-    pub fn new(header: &[u8]) -> Self {
+    pub fn from_bytes(header: &[u8]) -> Self {
         assert_eq!(header.len(), 12);
         DNSHeader {
             id: u16::from_be_bytes([header[0], header[1]]),
@@ -22,6 +22,17 @@ impl DNSHeader {
             ancount: u16::from_be_bytes([header[6], header[7]]),
             nscount: u16::from_be_bytes([header[8], header[9]]),
             arcount: u16::from_be_bytes([header[10], header[11]]),
+        }
+    }
+
+    pub fn new(id: u16) -> Self {
+        DNSHeader {
+            id,
+            flags: 0,
+            qdcount: 0,
+            ancount: 0,
+            nscount: 0,
+            arcount: 0,
         }
     }
 
@@ -37,6 +48,10 @@ impl DNSHeader {
             id[0], id[1], flags[0], flags[1], qdcount[0], qdcount[1], ancount[0], ancount[1],
             nscount[0], nscount[1], arcount[0], arcount[1],
         ]
+    }
+
+    pub fn flip_qr(&mut self) {
+        self.flags ^= 1 << 15
     }
 }
 
@@ -73,18 +88,20 @@ async fn process(socket: Arc<UdpSocket>, buffer: &[u8], address: SocketAddr) {
 
     assert!(buffer.len() >= 12);
 
-    let header = DNSHeader::new(&buffer[..12]);
+    let header = DNSHeader::from_bytes(&buffer[..12]);
 
     eprintln!("Received header: {:#?}", header);
 
-    let response_header = DNSHeader {
-        id: header.id,
-        flags: 1 << 15,
-        qdcount: 0,
-        ancount: 0,
-        nscount: 0,
-        arcount: 0,
-    };
+    // let response_header = DNSHeader {
+    //     id: header.id,
+    //     flags: 1 << 15,
+    //     qdcount: 0,
+    //     ancount: 0,
+    //     nscount: 0,
+    //     arcount: 0,
+    // };
+    let mut response_header = DNSHeader::new(header.id);
+    response_header.flip_qr();
 
     let response = response_header.to_bytes();
 
