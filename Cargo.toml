@@ -1,9 +1,9 @@
 [package]
-name = "codecrafters-dns-server"
+name = "dns-server"
 version = "0.1.0"
-authors = ["Codecrafters <hello@codecrafters.io>"]
+authors = ["Aniruddh S <hoirrr@duck.com>"]
 edition = "2021"
-rust-version = "1.80"
+rust-version = "1.85"
 
 [profile.dev]
 debug = false
