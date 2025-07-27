@@ -1,9 +1,11 @@
 mod dns;
 
 #[allow(unused_imports)]
-use dns::DNSHeader;
+use dns::Header;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::net::UdpSocket;
+
+use crate::dns::{parse_questions, Question};
 
 #[tokio::main]
 async fn main() {
@@ -26,7 +28,7 @@ async fn main() {
                 });
             }
             Err(e) => {
-                eprintln!("Error receiving data: {}", e);
+                eprintln!("Error receiving data: {e}");
                 break;
             }
         }
@@ -36,25 +38,50 @@ async fn main() {
 async fn process(socket: Arc<UdpSocket>, buffer: &[u8], address: SocketAddr) {
     eprintln!("Received {} bytes from {}", buffer.len(), address);
 
-    assert!(buffer.len() >= 12);
+    let header = match Header::from_bytes(&buffer[..12]) {
+        Ok(header) => {
+            eprintln!("Received header: {header:#?}");
+            header
+        }
+        Err(e) => {
+            eprintln!("Error parsing header: {e}");
+            return;
+        }
+    }; 
 
-    let header = DNSHeader::from_bytes(&buffer[..12]);
+    let (question, answer_section_offset) = match parse_questions(&buffer[..12]) {
+        Ok((question, answer_section_offset)) => {
+            eprintln!("Received question: {question:#?}");
+            eprintln!("Next offset: {answer_section_offset}");
+            (question, answer_section_offset)
+        }
+        Err(e) => {
+            eprintln!("Error parsing question: {e}");
+            return;
+        }
+    };
 
-    eprintln!("Received header: {:#?}", header);
-
-    // let response_header = DNSHeader {
-    //     id: header.id,
-    //     flags: 1 << 15,
-    //     qdcount: 0,
-    //     ancount: 0,
-    //     nscount: 0,
-    //     arcount: 0,
-    // };
-    let mut response_header = DNSHeader::new(header.id);
+    let mut response_header = Header::new(header.id);
     response_header.flip_qr();
 
-    let response = response_header.to_bytes();
+    let mut response_questions = question;
 
+    // Weird shenanigan to avoid allocating.
+    // TODO: Rewrite later with a DNS struct.
+    let mut response = response_header.to_bytes().to_vec();
+    response.extend_from_slice(&buffer[12..]);
+    let mut response_buf = [0u8; 512];
+    let header_bytes = response_header.to_bytes();
+    let header_len = header_bytes.len();
+    response_buf[..header_len].copy_from_slice(&header_bytes);
+    let rest_len = buffer.len().saturating_sub(12);
+    response_buf[header_len..header_len + rest_len].copy_from_slice(&buffer[12..12 + rest_len]);
+    let response_len = header_len + rest_len;
+
+    socket
+        .send_to(&response_buf[..response_len], address)
+        .await
+        .expect("Failed to send response");
     socket
         .send_to(&response, address)
         .await
